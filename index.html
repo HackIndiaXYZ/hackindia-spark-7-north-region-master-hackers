@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Habit Nature App</title>
+
+<style>
+body {
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #020617, #0f172a, #020617);
+  color: white;
+}
+
+/* HEADER */
+h1 {
+  text-align: center;
+  padding: 15px;
+  font-size: 22px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(10px);
+  margin: 0;
+}
+
+/* GRID BUTTONS */
+.container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  padding: 15px;
+}
+
+button {
+  padding: 18px;
+  border-radius: 16px;
+  border: none;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(12px);
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  background: #22c55e;
+  color: black;
+  transform: translateY(-3px) scale(1.05);
+}
+
+/* MAIN CARD */
+.screen {
+  margin: 15px;
+  padding: 20px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(15px);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  animation: fade 0.4s ease;
+}
+
+@keyframes fade {
+  from {opacity: 0; transform: translateY(15px);}
+  to {opacity: 1;}
+}
+
+/* PROGRESS */
+.progress-bar {
+  height: 10px;
+  background: #1e293b;
+  border-radius: 10px;
+  margin-top: 10px;
+}
+.progress {
+  height: 10px;
+  background: linear-gradient(to right, #22c55e, #4ade80);
+  border-radius: 10px;
+}
+
+/* HEATMAP */
+.heatmap {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  margin-top: 10px;
+}
+.day {
+  height: 22px;
+  border-radius: 4px;
+  background: #1e293b;
+}
+.active {
+  background: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+/* TEXT */
+h2 { margin-top: 0; }
+p { opacity: 0.9; }
+
+/* GLOW EFFECT */
+.glow {
+  color: #22c55e;
+  text-shadow: 0 0 10px #22c55e;
+}
+</style>
+</head>
+
+<body>
+
+<h1>🌍 Habit Nature App</h1>
+
+<div class="container">
+  <button onclick="show('habit')">🌱 Build Habit</button>
+  <button onclick="show('achievements')">🏆 Achievements</button>
+  <button onclick="show('dashboard')">📊 Dashboard</button>
+  <button onclick="show('mood')">🤖 Mood AI</button>
+  <button onclick="show('nature')">🌍 Nature World</button>
+</div>
+
+<div id="content" class="screen">
+  <p>Select a feature to begin</p>
+</div>
+
+<script>
+let points = 0;
+let streak = 0;
+let freeze = 1;
+let history = [];
+let heatmap = Array(30).fill(0);
+let challengeActive = false;
+let challengeDays = 0;
+let lastDay = null;
+
+// SCREEN SWITCH
+function show(section) {
+  let c = document.getElementById("content");
+
+  if (section === "habit") {
+    c.innerHTML = `
+      <h2>Build Habit</h2>
+      <button onclick="completeHabit('Workout')">🏋️ Workout</button>
+      <button onclick="completeHabit('Study')">📚 Study</button>
+      <button onclick="completeHabit('Meditation')">🧘 Meditation</button>
+      <button onclick="completeHabit('Reading')">📖 Reading</button>
+      <br><br>
+      <button onclick="startChallenge()">⚔️ Start 7-Day Challenge</button>
+      <button onclick="startTimer()">⏳ Focus Timer</button>
+      <p id="timer"></p>
+      <p>Challenge Days: ${challengeDays}</p>
+    `;
+  }
+
+  if (section === "achievements") {
+    let level = Math.floor(points / 20);
+    c.innerHTML = `
+      <h2>Achievements</h2>
+      <p>Points: ${points}</p>
+      <p>Level: ${level}</p>
+      <p>Streak: ${streak}</p>
+      <p>Streak Freeze: ${freeze}</p>
+      <p>Title: ${getTitle()}</p>
+
+      <div class="progress-bar">
+        <div class="progress" style="width:${(points % 20)*5}%"></div>
+      </div>
+    `;
+  }
+
+  if (section === "dashboard") {
+    c.innerHTML = `
+      <h2>Dashboard</h2>
+      <p>Total Points: ${points}</p>
+      <p>Best Streak: ${streak}</p>
+      <p>Consistency: ${history.length * 5}%</p>
+      <p>AI Coach: ${dailyCoach()}</p>
+
+      <h3>Heatmap</h3>
+      <div class="heatmap">
+        ${heatmap.map(d => `<div class="day ${d ? 'active':''}"></div>`).join("")}
+      </div>
+    `;
+  }
+
+  if (section === "mood") {
+    c.innerHTML = `
+      <h2>Mood AI</h2>
+      <button onclick="suggest('sad')">😔 Sad</button>
+      <button onclick="suggest('lazy')">😴 Lazy</button>
+      <button onclick="suggest('focused')">🔥 Focused</button>
+      <p id="ai"></p>
+      <br>
+      <button onclick="setReminder()">🔔 Set Reminder</button>
+    `;
+  }
+
+  if (section === "nature") {
+    let stage = "🌵 Cracked Land";
+    if (points > 10) stage = "🌱 Grass Growing";
+    if (points > 30) stage = "🌳 Trees Growing";
+    if (points > 60) stage = "🦋 Animals Appearing";
+    if (points > 100) stage = "✨ Fantasy World";
+
+    let time = (points % 2 === 0) ? "☀️ Day" : "🌙 Night";
+
+    c.innerHTML = `
+      <h2>Nature World</h2>
+      <p class="glow">${stage}</p>
+      <p>${time}</p>
+      <p>Season: 🌸 Spring</p>
+      <button onclick="explore()">Explore 🌿</button>
+    `;
+  }
+}
+
+// COMPLETE HABIT
+function completeHabit(name) {
+  checkStreak();
+  points += 10;
+  streak++;
+  history.push(name);
+
+  heatmap.shift();
+  heatmap.push(1);
+
+  if (challengeActive) {
+    challengeDays++;
+    if (challengeDays === 7) {
+      alert("Challenge Completed 🎉");
+      challengeActive = false;
+    }
+  }
+
+  alert(name + " done! +10 points 🔥");
+}
+
+// STREAK LOGIC
+function checkStreak() {
+  let today = new Date().getDate();
+
+  if (lastDay !== null && lastDay !== today - 1) {
+    if (freeze > 0) {
+      freeze--;
+      alert("Streak saved using freeze 🧊");
+    } else {
+      streak = 0;
+    }
+  }
+  lastDay = today;
+}
+
+// AI COACH
+function dailyCoach() {
+  if (streak < 3) return "Start small 💡";
+  if (streak < 7) return "You're growing 🔥";
+  return "You're unstoppable 🚀";
+}
+
+// MOOD AI
+function suggest(mood) {
+  let ai = document.getElementById("ai");
+
+  if (mood === "sad") ai.innerText = "Walk 5 mins + music 🎧";
+  if (mood === "lazy") ai.innerText = "Start 2-min task ⏱️";
+  if (mood === "focused") ai.innerText = "Deep work 25 mins 🔥";
+}
+
+// REMINDER
+function setReminder() {
+  setTimeout(() => {
+    alert("Reminder: Complete your habits 🔔");
+  }, 5000);
+}
+
+// CHALLENGE
+function startChallenge() {
+  challengeActive = true;
+  challengeDays = 0;
+  alert("7-Day Challenge Started ⚔️");
+}
+
+// TIMER
+let timer;
+function startTimer() {
+  let time = 25;
+  timer = setInterval(() => {
+    time--;
+    document.getElementById("timer").innerText = time + " sec";
+
+    if (time === 0) {
+      clearInterval(timer);
+      alert("Focus complete 🔥");
+      completeHabit("Focus");
+    }
+  }, 1000);
+}
+
+// NATURE INTERACTION
+function explore() {
+  points += 5;
+  alert("You found a butterfly 🦋 +5 points");
+}
+
+// TITLE SYSTEM
+function getTitle() {
+  if (points > 200) return "👑 Nature King";
+  if (points > 100) return "🔥 Habit Warrior";
+  if (points > 50) return "🌟 Rising Star";
+  return "Beginner";
+}
+</script>
+
+</body>
+</html>
